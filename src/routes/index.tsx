@@ -154,6 +154,8 @@ function Nexus() {
     setRunning(true);
     setTrace([]);
     setResult(null);
+    setWorkingMemory("");
+
 
     try {
       const response = await fetch("/api/investigate", {
