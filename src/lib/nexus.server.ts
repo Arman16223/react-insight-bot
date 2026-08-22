@@ -520,7 +520,13 @@ export async function* runNexus(
         )
       : "No useful results were found.";
 
-    state.observations.push({ step: state.step_count, tool: toolName, observation });
+    state.observations.push({
+      step: state.step_count,
+      tool: toolName,
+      observation,
+      result_count: results.length,
+    });
+
     state.sources.push(...results);
 
     yield emit({
