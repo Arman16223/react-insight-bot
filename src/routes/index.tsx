@@ -220,6 +220,17 @@ function Nexus() {
 
   const stepCount = new Set(trace.map((t) => t.step)).size;
   const sourceCount = trace.reduce((n, t) => n + (t.result_count ?? 0), 0);
+  const errorCount = trace.filter((t) => t.type === "error").length;
+  const progress = result ? 100 : Math.min(95, stepCount * 12);
+  const visibleTrace = filter === "all" ? trace : trace.filter((t) => t.type === filter);
+  const counts: Record<Filter, number> = {
+    all: trace.length,
+    decision: trace.filter((t) => t.type === "decision").length,
+    observation: trace.filter((t) => t.type === "observation").length,
+    error: errorCount,
+  };
+  const mmss = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
+
 
   return (
     <main className="min-h-screen px-4 pb-10 sm:px-8">
