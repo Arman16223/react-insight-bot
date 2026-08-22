@@ -14,7 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      investigation_history: {
+        Row: {
+          confidence: number
+          created_at: string
+          id: string
+          summary: string
+          target: string
+          topic: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          summary: string
+          target: string
+          topic?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          summary?: string
+          target?: string
+          topic?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
