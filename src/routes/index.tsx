@@ -277,11 +277,34 @@ function Nexus() {
       <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.6fr)]">
         {/* Form */}
         <section className="panel h-fit p-5 lg:sticky lg:top-24">
-          <h2 className="panel-title mb-5 flex items-center gap-2 border-b border-border pb-3">
+          <h2 className="panel-title mb-4 flex items-center gap-2 border-b border-border pb-3">
             <span className="size-1.5 rounded-full bg-primary" />
             Investigation Parameters
           </h2>
-          <div className="space-y-4">
+
+          <div className="mb-5">
+            <span className="label-caps mb-2 block">Quick Start</span>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => applyPreset(p)}
+                  disabled={running}
+                  className="rounded-full border border-border bg-secondary/40 px-3 py-1 font-mono text-[0.65rem] tracking-[0.12em] uppercase text-muted-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 hover:text-primary disabled:opacity-50"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="space-y-4"
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canRun) run();
+            }}
+          >
             <Field label="Target">
               <input
                 className={inputClass}
@@ -309,7 +332,7 @@ function Nexus() {
                 disabled={running}
               />
             </Field>
-            <Field label="Investigation Goal">
+            <Field label="Investigation Goal" hint={`${goal.trim().length} chars`}>
               <textarea
                 className={`${inputClass} min-h-28 resize-y leading-relaxed`}
                 placeholder="What should NEXUS find out?"
@@ -327,23 +350,21 @@ function Nexus() {
               {running ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Investigating
+                  Investigating · {mmss}
                 </span>
               ) : (
                 "Run Investigation"
               )}
             </button>
-            {!goal.trim() && (
-              <p className="text-center text-xs text-muted-foreground">
-                An investigation goal is required.
-              </p>
-            )}
+            <p className="text-center font-mono text-[0.65rem] tracking-[0.12em] uppercase text-muted-foreground">
+              {goal.trim() ? "⌘ / Ctrl + Enter to run" : "Investigation goal required"}
+            </p>
           </div>
         </section>
 
         {/* Activity */}
         <section className="panel flex min-h-96 flex-col p-5 lg:max-h-[calc(100vh-9rem)]">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="panel-title flex items-center gap-2">
               <span
                 className={`size-1.5 rounded-full ${running ? "animate-pulse bg-accent" : "bg-muted-foreground"}`}
@@ -353,7 +374,43 @@ function Nexus() {
             <div className="flex items-center gap-2">
               <Stat label="Steps" value={stepCount} />
               <Stat label="Sources" value={sourceCount} />
+              {errorCount > 0 && <Stat label="Errors" value={errorCount} tone="destructive" />}
             </div>
+          </div>
+
+          <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-secondary/60">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+            <div className="flex flex-wrap gap-1.5">
+              {(["all", "decision", "observation", "error"] as Filter[]).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  className={`rounded-sm border px-2 py-1 font-mono text-[0.6rem] tracking-[0.16em] uppercase transition-colors ${
+                    filter === f
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {f} {counts[f] > 0 && <span className="opacity-70">{counts[f]}</span>}
+                </button>
+              ))}
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 font-mono text-[0.6rem] tracking-[0.16em] uppercase text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={autoScroll}
+                onChange={(e) => setAutoScroll(e.target.checked)}
+                className="size-3 accent-[var(--color-primary)]"
+              />
+              Auto-scroll
+            </label>
           </div>
 
           <div className="flex-1 overflow-y-auto pr-1">
@@ -365,21 +422,31 @@ function Nexus() {
                 <p className="text-sm text-muted-foreground">
                   NEXUS is ready to investigate.
                 </p>
-                <p className="label-caps">Define a goal to begin</p>
+                <p className="label-caps">Pick a quick start or define a goal</p>
               </div>
             )}
             {trace.length === 0 && running && (
-              <div className="flex items-center justify-center gap-3 py-20 text-sm text-muted-foreground">
-                <span className="size-2 animate-pulse rounded-full bg-primary" />
-                Initializing autonomous investigation...
+              <div className="space-y-3 py-2">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="h-20 animate-pulse rounded-md border border-border bg-card/40"
+                    style={{ animationDelay: `${i * 120}ms` }}
+                  />
+                ))}
               </div>
             )}
-            {trace.length > 0 && (
+            {visibleTrace.length > 0 && (
               <ol className="relative space-y-3 border-l border-border/70 pl-5">
-                {trace.map((event, i) => (
+                {visibleTrace.map((event, i) => (
                   <TraceCard key={`${event.step}-${event.type}-${i}`} event={event} />
                 ))}
               </ol>
+            )}
+            {trace.length > 0 && visibleTrace.length === 0 && (
+              <p className="py-16 text-center text-sm text-muted-foreground">
+                No {filter} events yet.
+              </p>
             )}
             <div ref={bottomRef} />
           </div>
@@ -393,10 +460,27 @@ function Nexus() {
               <span className="size-1.5 rounded-full bg-accent" />
               Intelligence Report
             </h2>
-            <span className="rounded-full border border-accent/50 bg-accent/10 px-3 py-1 font-mono text-[0.65rem] tracking-[0.18em] text-accent uppercase">
-              {result.confidence}% Confidence
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-accent/50 bg-accent/10 px-3 py-1 font-mono text-[0.65rem] tracking-[0.18em] text-accent uppercase">
+                {result.confidence}% Confidence
+              </span>
+              <button
+                type="button"
+                onClick={copyReport}
+                className="rounded-sm border border-border px-3 py-1 font-mono text-[0.6rem] tracking-[0.16em] uppercase text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
+              >
+                {copied ? "Copied" : "Copy"}
+              </button>
+              <a
+                href={`data:text/plain;charset=utf-8,${encodeURIComponent(result.report)}`}
+                download="nexus-report.txt"
+                className="rounded-sm border border-border px-3 py-1 font-mono text-[0.6rem] tracking-[0.16em] uppercase text-muted-foreground transition-colors hover:border-primary/60 hover:text-primary"
+              >
+                Download
+              </a>
+            </div>
           </div>
+
           <div className="space-y-2 text-sm leading-relaxed text-foreground/85 sm:columns-1">
             {result.report.split("\n").map((line, i) => {
               const clean = line.replace(/[*#`]/g, "").trim();
