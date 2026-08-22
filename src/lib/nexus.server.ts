@@ -400,8 +400,9 @@ export async function* runNexus(
     let decision: Record<string, unknown>;
     try {
       const raw = await callLLM(
-        `${SYSTEM_PROMPT}\n\nCURRENT INVESTIGATION STATE:\n\n${context}\n\nDecide the next best action.\n\nRemember:\n- Select ONE tool OR finish.\n- Do not repeat an identical search unless verification is necessary.\n- Prefer information that increases confidence in the final answer.`,
+        `${SYSTEM_PROMPT}\n\n${priorContext ? `${priorContext}\n\n` : ""}CURRENT INVESTIGATION STATE:\n\n${context}\n\nDecide the next best action.\n\nRemember:\n- Select ONE tool OR finish.\n- Do not repeat an identical search unless verification is necessary.\n- Prefer information that increases confidence in the final answer.`,
       );
+
       const parsed: unknown = JSON.parse(cleanJsonResponse(raw));
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
         throw new Error("Model response was not a JSON object.");
