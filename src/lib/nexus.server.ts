@@ -7,13 +7,22 @@ export type SourceResult = { title: string; url: string; content: string };
 
 export type TraceEvent = {
   step: number;
-  type: "decision" | "observation" | "error";
+  type: "decision" | "observation" | "error" | "memory";
   message: string;
   tool?: string;
   query?: string;
   result_count?: number;
   status?: string;
 };
+
+export type PriorInvestigation = {
+  target: string;
+  topic: string | null;
+  summary: string;
+  confidence: number | null;
+  created_at: string;
+};
+
 
 export type NexusInput = {
   goal: string;
