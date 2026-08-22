@@ -165,10 +165,49 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     background-image:
+      radial-gradient(
+        ellipse 70% 50% at 50% -10%,
+        oklch(0.68 0.19 262 / 18%),
+        transparent 70%
+      ),
       linear-gradient(to right, var(--color-grid-line) 1px, transparent 1px),
       linear-gradient(to bottom, var(--color-grid-line) 1px, transparent 1px);
-    background-size: 44px 44px;
+    background-size:
+      100% 100%,
+      44px 44px,
+      44px 44px;
     background-attachment: fixed;
   }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-muted-foreground);
+  }
 }
+
+@keyframes trace-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-trace-in {
+  animation: trace-in 0.28s ease-out both;
+}
+
 
