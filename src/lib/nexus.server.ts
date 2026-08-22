@@ -540,9 +540,11 @@ export async function* runNexus(
   }
 
   let report: string;
+  let reportOk = true;
   try {
-    report = await generateFinalReport(state);
+    report = await generateFinalReport({ ...state, prior_context: priorContext });
   } catch (e) {
+    reportOk = false;
     const message = e instanceof Error ? e.message : String(e);
     report = `NEXUS investigation completed, but the final report could not be generated.\n\nError: ${message}`;
     yield emit({
@@ -553,6 +555,36 @@ export async function* runNexus(
     });
   }
 
+  // ---- long-term memory: persist this run ----
+  if (reportOk) {
+    try {
+      const summary = (
+        await callLLM(
+          `Summarise the key findings of this competitive intelligence report in 2-3 plain-text sentences. No markdown, no headers.\n\nREPORT:\n${report.slice(0, 6000)}`,
+        )
+      ).trim();
+      await savePriorInvestigation({
+        target: state.target,
+        topic: state.topic,
+        summary,
+        confidence: state.confidence,
+      });
+      yield emit({
+        step: state.step_count,
+        type: "memory",
+        message: `Saved this investigation to long-term memory for ${state.target || "future runs"}.`,
+        status: "stored",
+      });
+    } catch (e) {
+      yield emit({
+        step: state.step_count,
+        type: "error",
+        message: `Could not save to long-term memory: ${e instanceof Error ? e.message : String(e)}`,
+        status: "error",
+      });
+    }
+  }
+
   yield {
     type: "result",
     result: {
@@ -560,9 +592,11 @@ export async function* runNexus(
       trace,
       steps: state.step_count,
       confidence: state.confidence,
+      working_memory: state.working_memory,
     },
   };
 }
+
 
 async function generateFinalReport(state: {
   goal: string;
