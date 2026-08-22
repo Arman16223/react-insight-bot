@@ -192,6 +192,97 @@ For finishing return:
 The "tool" field must be exactly one of: search_news, search_research, search_patents, search_competitor_activity.`;
 
 // ============================================================
+// LONG-TERM MEMORY (persistent store)
+// ============================================================
+
+async function loadPriorInvestigations(target: string): Promise<PriorInvestigation[]> {
+  if (!target) return [];
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("investigation_history")
+    .select("target, topic, summary, confidence, created_at")
+    .ilike("target", target)
+    .order("created_at", { ascending: false })
+    .limit(3);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PriorInvestigation[];
+}
+
+async function savePriorInvestigation(row: {
+  target: string;
+  topic: string;
+  summary: string;
+  confidence: number;
+}): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin.from("investigation_history").insert({
+    target: row.target || "Unspecified",
+    topic: row.topic,
+    summary: row.summary,
+    confidence: row.confidence,
+  });
+  if (error) throw new Error(error.message);
+}
+
+function formatPriorInvestigations(history: PriorInvestigation[]): string {
+  if (!history.length) return "";
+  const lines = history.map((h) => {
+    const date = new Date(h.created_at).toISOString().slice(0, 10);
+    return `- [${date}] (confidence ${h.confidence ?? "n/a"}%) ${h.summary}`;
+  });
+  return `PRIOR INVESTIGATIONS ON THIS TARGET:\n${lines.join("\n")}\n\nUse these as background. Note in the final report whether anything has changed since then.`;
+}
+
+// ============================================================
+// SHORT-TERM MEMORY (context window management)
+// ============================================================
+
+const FULL_DETAIL_STEPS = 3;
+const FULL_DETAIL_STEPS_COMPRESSED = 2;
+const COMPRESS_AFTER_STEP = 5;
+
+type AgentAction = { step: number; tool: string; query: string };
+type AgentObservation = {
+  step: number;
+  tool: string;
+  observation: string;
+  result_count: number;
+};
+
+function condenseStep(action: AgentAction, obs?: AgentObservation): string {
+  const count = obs ? obs.result_count : 0;
+  return `Step ${action.step}: used ${action.tool} for "${action.query}", found ${count} results`;
+}
+
+async function compressWorkingMemory(state: {
+  goal: string;
+  target: string;
+  topic: string;
+  working_memory: string;
+  observations: AgentObservation[];
+}): Promise<string> {
+  const evidence = state.observations
+    .map((o) => `Step ${o.step} (${o.tool}):\n${o.observation.slice(0, 1200)}`)
+    .join("\n\n");
+
+  const prompt = `Compress the state of an ongoing intelligence investigation into a short
+"working memory" note of 3-5 sentences.
+
+GOAL: ${state.goal}
+TARGET: ${state.target}
+TOPIC: ${state.topic}
+
+${state.working_memory ? `PREVIOUS WORKING MEMORY:\n${state.working_memory}\n` : ""}
+EVIDENCE GATHERED SO FAR:
+${evidence || "(none)"}
+
+Cover: what has been established, what is still uncertain, and what has not been
+checked yet. Plain text only, no markdown, no headers, no invented facts.`;
+
+  return (await callLLM(prompt)).trim();
+}
+
+// ============================================================
 // AGENT LOOP
 // ============================================================
 
@@ -200,12 +291,15 @@ export type NexusResult = {
   trace: TraceEvent[];
   steps: number;
   confidence: number;
+  working_memory: string;
 };
 
 export async function* runNexus(
   input: NexusInput,
 ): AsyncGenerator<
-  { type: "trace"; event: TraceEvent } | { type: "result"; result: NexusResult },
+  | { type: "trace"; event: TraceEvent }
+  | { type: "memory"; working_memory: string }
+  | { type: "result"; result: NexusResult },
   void,
   unknown
 > {
@@ -215,11 +309,12 @@ export async function* runNexus(
     competitors: input.competitors,
     topic: input.topic,
     step_count: 0,
-    actions_taken: [] as Array<{ step: number; tool: string; query: string }>,
-    observations: [] as Array<{ step: number; tool: string; observation: string }>,
+    actions_taken: [] as AgentAction[],
+    observations: [] as AgentObservation[],
     sources: [] as SourceResult[],
     task_complete: false,
     confidence: 0,
+    working_memory: "",
   };
 
   const trace: TraceEvent[] = [];
@@ -228,8 +323,60 @@ export async function* runNexus(
     return { type: "trace" as const, event };
   };
 
+  // ---- long-term memory: recall ----
+  let priorContext = "";
+  try {
+    const history = await loadPriorInvestigations(state.target);
+    if (history.length) {
+      priorContext = formatPriorInvestigations(history);
+      yield emit({
+        step: 0,
+        type: "memory",
+        message: `Found ${history.length} previous investigation${history.length > 1 ? "s" : ""} on ${state.target} — using as background context.`,
+        status: "recalled",
+      });
+    }
+  } catch (e) {
+    yield emit({
+      step: 0,
+      type: "error",
+      message: `Long-term memory unavailable: ${e instanceof Error ? e.message : String(e)}`,
+      status: "error",
+    });
+  }
+
   while (!state.task_complete && state.step_count < MAX_STEPS) {
     state.step_count += 1;
+
+    // ---- short-term memory: compress history once past COMPRESS_AFTER_STEP ----
+    if (state.step_count > COMPRESS_AFTER_STEP && state.observations.length) {
+      try {
+        state.working_memory = await compressWorkingMemory(state);
+        yield emit({
+          step: state.step_count,
+          type: "memory",
+          message: `Compressed ${state.observations.length} steps of history into working memory.`,
+          status: "compressed",
+        });
+        yield { type: "memory", working_memory: state.working_memory };
+      } catch (e) {
+        yield emit({
+          step: state.step_count,
+          type: "error",
+          message: `Memory compression failed: ${e instanceof Error ? e.message : String(e)}`,
+          status: "error",
+        });
+      }
+    }
+
+    const detailCount = state.working_memory
+      ? FULL_DETAIL_STEPS_COMPRESSED
+      : FULL_DETAIL_STEPS;
+    const recentActions = state.actions_taken.slice(-detailCount);
+    const recentSteps = new Set(recentActions.map((a) => a.step));
+    const olderSummary = state.actions_taken
+      .filter((a) => !recentSteps.has(a.step))
+      .map((a) => condenseStep(a, state.observations.find((o) => o.step === a.step)));
 
     const context = JSON.stringify(
       {
@@ -239,13 +386,16 @@ export async function* runNexus(
         topic: state.topic,
         step: state.step_count,
         max_steps: MAX_STEPS,
-        actions_taken: state.actions_taken.slice(-5),
-        recent_observations: state.observations.slice(-4),
+        working_memory: state.working_memory || undefined,
+        earlier_steps_summary: olderSummary,
+        recent_actions: recentActions,
+        recent_observations: state.observations.filter((o) => recentSteps.has(o.step)),
         sources_found: state.sources.length,
       },
       null,
       2,
     );
+
 
     let decision: Record<string, unknown>;
     try {
