@@ -155,35 +155,56 @@ function Nexus() {
 
   const canRun = goal.trim().length > 0 && !running;
 
+  const stepCount = new Set(trace.map((t) => t.step)).size;
+  const sourceCount = trace.reduce((n, t) => n + (t.result_count ?? 0), 0);
+
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-8">
-      <header className="mx-auto mb-6 flex max-w-7xl flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
-        <div>
-          <h1 className="font-mono text-3xl font-bold tracking-[0.35em] text-foreground">
-            NEXUS
-          </h1>
-          <p className="label-caps mt-1">Autonomous Competitive Intelligence</p>
-        </div>
-        <div
-          className={`flex items-center gap-2 rounded-full border px-3 py-1.5 ${
-            running
-              ? "border-primary/60 bg-primary/10 text-primary"
-              : "border-border bg-secondary text-muted-foreground"
-          }`}
-        >
-          <span
-            className={`size-2 rounded-full ${running ? "animate-pulse bg-primary" : "bg-accent"}`}
-          />
-          <span className="font-mono text-[0.65rem] tracking-[0.2em] uppercase">
-            {running ? "Agent Active" : "System Ready"}
-          </span>
+    <main className="min-h-screen px-4 pb-10 sm:px-8">
+      <header className="sticky top-0 z-20 -mx-4 mb-6 border-b border-border/70 bg-background/80 px-4 py-4 backdrop-blur-xl sm:-mx-8 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="grid size-9 shrink-0 place-items-center rounded-md border border-primary/40 bg-primary/10 font-mono text-sm font-bold text-primary"
+              aria-hidden
+            >
+              N
+            </div>
+            <div>
+              <h1 className="text-gradient-primary font-mono text-xl font-bold tracking-[0.35em] sm:text-2xl">
+                NEXUS
+              </h1>
+              <p className="label-caps mt-0.5 hidden sm:block">
+                Autonomous Competitive Intelligence
+              </p>
+            </div>
+          </div>
+          <div
+            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 transition-colors ${
+              running
+                ? "border-primary/60 bg-primary/10 text-primary"
+                : "border-border bg-secondary/60 text-muted-foreground"
+            }`}
+          >
+            <span className="relative flex size-2">
+              {running && (
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-75" />
+              )}
+              <span
+                className={`relative inline-flex size-2 rounded-full ${running ? "bg-primary" : "bg-accent"}`}
+              />
+            </span>
+            <span className="font-mono text-[0.6rem] tracking-[0.2em] uppercase sm:text-[0.65rem]">
+              {running ? "Agent Active" : "System Ready"}
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+      <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.6fr)]">
         {/* Form */}
-        <section className="panel h-fit p-5">
-          <h2 className="panel-title mb-5 border-b border-border pb-3">
+        <section className="panel h-fit p-5 lg:sticky lg:top-24">
+          <h2 className="panel-title mb-5 flex items-center gap-2 border-b border-border pb-3">
+            <span className="size-1.5 rounded-full bg-primary" />
             Investigation Parameters
           </h2>
           <div className="space-y-4">
@@ -216,7 +237,7 @@ function Nexus() {
             </Field>
             <Field label="Investigation Goal">
               <textarea
-                className={`${inputClass} min-h-32 resize-y`}
+                className={`${inputClass} min-h-28 resize-y leading-relaxed`}
                 placeholder="What should NEXUS find out?"
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
@@ -226,52 +247,83 @@ function Nexus() {
             <button
               onClick={run}
               disabled={!canRun}
-              className="w-full rounded-md bg-primary px-4 py-3 font-mono text-xs tracking-[0.2em] text-primary-foreground uppercase transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              className="group relative w-full overflow-hidden rounded-md bg-primary px-4 py-3 font-mono text-xs tracking-[0.2em] text-primary-foreground uppercase transition-all hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               style={running ? undefined : { boxShadow: "var(--glow)" }}
             >
-              {running ? "NEXUS Investigating..." : "Run Investigation"}
+              {running ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Investigating
+                </span>
+              ) : (
+                "Run Investigation"
+              )}
             </button>
+            {!goal.trim() && (
+              <p className="text-center text-xs text-muted-foreground">
+                An investigation goal is required.
+              </p>
+            )}
           </div>
         </section>
 
         {/* Activity */}
-        <section className="panel flex max-h-[calc(100vh-9rem)] min-h-96 flex-col p-5">
-          <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
-            <h2 className="panel-title">Live Agent Activity</h2>
-            <span className="label-caps">
-              {new Set(trace.map((t) => t.step)).size} Steps
-            </span>
+        <section className="panel flex min-h-96 flex-col p-5 lg:max-h-[calc(100vh-9rem)]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+            <h2 className="panel-title flex items-center gap-2">
+              <span
+                className={`size-1.5 rounded-full ${running ? "animate-pulse bg-accent" : "bg-muted-foreground"}`}
+              />
+              Live Agent Activity
+            </h2>
+            <div className="flex items-center gap-2">
+              <Stat label="Steps" value={stepCount} />
+              <Stat label="Sources" value={sourceCount} />
+            </div>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+          <div className="flex-1 overflow-y-auto pr-1">
             {trace.length === 0 && !running && (
-              <p className="py-16 text-center text-sm text-muted-foreground">
-                NEXUS is ready to investigate.
-              </p>
+              <div className="flex flex-col items-center gap-3 py-20 text-center">
+                <div className="grid size-12 place-items-center rounded-full border border-border bg-secondary/40 font-mono text-primary">
+                  ⌁
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  NEXUS is ready to investigate.
+                </p>
+                <p className="label-caps">Define a goal to begin</p>
+              </div>
             )}
             {trace.length === 0 && running && (
-              <div className="flex items-center justify-center gap-3 py-16 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center gap-3 py-20 text-sm text-muted-foreground">
                 <span className="size-2 animate-pulse rounded-full bg-primary" />
                 Initializing autonomous investigation...
               </div>
             )}
-            {trace.map((event, i) => (
-              <TraceCard key={`${event.step}-${event.type}-${i}`} event={event} />
-            ))}
+            {trace.length > 0 && (
+              <ol className="relative space-y-3 border-l border-border/70 pl-5">
+                {trace.map((event, i) => (
+                  <TraceCard key={`${event.step}-${event.type}-${i}`} event={event} />
+                ))}
+              </ol>
+            )}
             <div ref={bottomRef} />
           </div>
         </section>
       </div>
 
       {result && (
-        <section className="panel mx-auto mt-6 max-w-7xl p-6">
+        <section className="panel mx-auto mt-5 max-w-7xl p-5 sm:p-6">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-            <h2 className="panel-title">Intelligence Report</h2>
+            <h2 className="panel-title flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-accent" />
+              Intelligence Report
+            </h2>
             <span className="rounded-full border border-accent/50 bg-accent/10 px-3 py-1 font-mono text-[0.65rem] tracking-[0.18em] text-accent uppercase">
               {result.confidence}% Confidence
             </span>
           </div>
-          <div className="space-y-2 text-sm leading-relaxed text-foreground/90">
+          <div className="space-y-2 text-sm leading-relaxed text-foreground/85 sm:columns-1">
             {result.report.split("\n").map((line, i) => {
               const clean = line.replace(/[*#`]/g, "").trim();
               if (!clean) return <div key={i} className="h-2" />;
@@ -279,14 +331,15 @@ function Nexus() {
                 return (
                   <h3
                     key={i}
-                    className="panel-title pt-4 text-primary first:pt-0"
+                    className="panel-title flex items-center gap-2 pt-6 text-primary first:pt-0"
                   >
+                    <span className="h-px w-4 bg-primary/60" />
                     {clean.toUpperCase()}
                   </h3>
                 );
               }
               return (
-                <p key={i} className="whitespace-pre-wrap">
+                <p key={i} className="whitespace-pre-wrap break-words">
                   {clean}
                 </p>
               );
@@ -299,7 +352,16 @@ function Nexus() {
 }
 
 const inputClass =
-  "w-full rounded-md border border-input bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-60";
+  "w-full rounded-md border border-input bg-background/60 px-3 py-2.5 font-mono text-sm text-foreground transition-colors placeholder:text-muted-foreground/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-60";
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <span className="rounded-sm border border-border bg-secondary/40 px-2 py-1 font-mono text-[0.6rem] tracking-[0.16em] uppercase">
+      <span className="text-foreground">{value}</span>{" "}
+      <span className="text-muted-foreground">{label}</span>
+    </span>
+  );
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -318,9 +380,20 @@ function TraceCard({ event }: { event: TraceEvent }) {
         ? "border-primary/50 text-primary"
         : "border-accent/50 text-accent";
 
+  const dot =
+    event.type === "error"
+      ? "bg-destructive"
+      : event.type === "decision"
+        ? "bg-primary"
+        : "bg-accent";
+
   return (
-    <article className="rounded-md border border-border bg-card/60 p-4">
-      <div className="mb-2 flex items-center gap-3">
+    <li className="animate-trace-in relative rounded-md border border-border bg-card/60 p-4 transition-colors hover:border-border/80 hover:bg-card/80">
+      <span
+        className={`absolute top-6 -left-[1.55rem] size-2 rounded-full ring-4 ring-[var(--color-surface)] ${dot}`}
+        aria-hidden
+      />
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="label-caps">Step {event.step}</span>
         <span
           className={`rounded-sm border px-2 py-0.5 font-mono text-[0.6rem] tracking-[0.18em] uppercase ${tone}`}
@@ -331,9 +404,9 @@ function TraceCard({ event }: { event: TraceEvent }) {
           <span className="label-caps ml-auto">{event.result_count} results</span>
         )}
       </div>
-      <p className="text-sm text-foreground/90">{event.message}</p>
+      <p className="text-sm break-words text-foreground/90">{event.message}</p>
       {event.tool && (
-        <div className="mt-3 space-y-1 border-t border-border pt-2">
+        <div className="mt-3 space-y-1 border-t border-border/70 pt-2">
           <p className="font-mono text-xs text-accent">{event.tool}</p>
           {event.query && (
             <p className="font-mono text-xs break-words text-muted-foreground">
@@ -342,9 +415,10 @@ function TraceCard({ event }: { event: TraceEvent }) {
           )}
         </div>
       )}
-    </article>
+    </li>
   );
 }
+
 
 /** Returns true when the [DONE] sentinel was seen. */
 function consumeSseBlock(block: string, onChunk: (payload: unknown) => void) {
