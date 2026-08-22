@@ -604,6 +604,8 @@ async function generateFinalReport(state: {
   competitors: string[];
   topic: string;
   sources: SourceResult[];
+  working_memory?: string;
+  prior_context?: string;
 }): Promise<string> {
   const sourceText = JSON.stringify(state.sources.slice(-20), null, 2);
 
@@ -621,8 +623,9 @@ ${state.competitors.join(", ")}
 
 TOPIC:
 ${state.topic}
-
+${state.prior_context ? `\n${state.prior_context}\n` : ""}${state.working_memory ? `\nWORKING MEMORY:\n${state.working_memory}\n` : ""}
 EVIDENCE:
+
 ${sourceText}
 
 Write a concise actionable intelligence report as PLAIN TEXT (no markdown, no
