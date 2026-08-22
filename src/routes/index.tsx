@@ -48,6 +48,32 @@ const REPORT_SECTIONS = [
   "SOURCES",
 ];
 
+const PRESETS = [
+  {
+    label: "Chip Wars",
+    target: "NVIDIA",
+    competitors: "AMD, Intel, Google",
+    topic: "AI accelerators",
+    goal: "Assess how rivals are eroding NVIDIA's AI accelerator lead and what moves matter next quarter.",
+  },
+  {
+    label: "AI Model Race",
+    target: "OpenAI",
+    competitors: "Anthropic, Google DeepMind, Meta",
+    topic: "Frontier models",
+    goal: "Map recent frontier model launches and where each lab is differentiating.",
+  },
+  {
+    label: "EV Market",
+    target: "Tesla",
+    competitors: "BYD, Rivian, Hyundai",
+    topic: "Electric vehicles",
+    goal: "Identify competitive threats to Tesla's market share and pricing power.",
+  },
+];
+
+type Filter = "all" | "decision" | "observation" | "error";
+
 function Nexus() {
   const [target, setTarget] = useState("");
   const [competitors, setCompetitors] = useState("");
@@ -57,12 +83,49 @@ function Nexus() {
   const [running, setRunning] = useState(false);
   const [trace, setTrace] = useState<TraceEvent[]>([]);
   const [result, setResult] = useState<NexusResult | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [elapsed, setElapsed] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [trace.length]);
+    if (autoScroll) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [trace.length, autoScroll]);
+
+  useEffect(() => {
+    if (!running) return;
+    setElapsed(0);
+    const started = Date.now();
+    const id = window.setInterval(
+      () => setElapsed(Math.floor((Date.now() - started) / 1000)),
+      1000,
+    );
+    return () => window.clearInterval(id);
+  }, [running]);
+
+  const applyPreset = (p: (typeof PRESETS)[number]) => {
+    if (running) return;
+    setTarget(p.target);
+    setCompetitors(p.competitors);
+    setTopic(p.topic);
+    setGoal(p.goal);
+  };
+
+  const copyReport = async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result.report);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
 
   const handleChunk = (payload: unknown) => {
     if (!payload || typeof payload !== "object") return;
