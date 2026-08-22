@@ -495,7 +495,9 @@ export async function* runNexus(
         step: state.step_count,
         tool: toolName,
         observation,
+        result_count: 0,
       });
+
       yield emit({
         step: state.step_count,
         type: "observation",
