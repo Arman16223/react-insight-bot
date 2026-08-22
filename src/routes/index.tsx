@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 type TraceEvent = {
   step: number;
-  type: "decision" | "observation" | "error";
+  type: "decision" | "observation" | "error" | "memory";
   message: string;
   tool?: string;
   query?: string;
@@ -16,7 +16,9 @@ type NexusResult = {
   trace: TraceEvent[];
   steps: number;
   confidence: number;
+  working_memory?: string;
 };
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
