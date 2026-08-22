@@ -258,7 +258,13 @@ export async function* runNexus(
       break;
     }
 
-    const action = decision["action"];
+    const rawAction = decision["action"];
+    // Tolerate models that put the tool name directly in "action".
+    const action =
+      typeof rawAction === "string" && TOOL_NAMES.includes(rawAction as ToolName)
+        ? ((decision["tool"] = decision["tool"] ?? rawAction), "tool")
+        : rawAction;
+
     const decisionSummary =
       typeof decision["decision_summary"] === "string"
         ? decision["decision_summary"]
