@@ -74,7 +74,7 @@ const PRESETS = [
   },
 ];
 
-type Filter = "all" | "decision" | "observation" | "error";
+type Filter = "all" | "decision" | "observation" | "memory" | "error";
 
 function Nexus() {
   const [target, setTarget] = useState("");
@@ -89,6 +89,8 @@ function Nexus() {
   const [elapsed, setElapsed] = useState(0);
   const [copied, setCopied] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [workingMemory, setWorkingMemory] = useState("");
+
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -134,14 +136,18 @@ function Nexus() {
     const chunk = payload as Record<string, unknown>;
     if (chunk["type"] === "trace" && chunk["event"]) {
       setTrace((prev) => [...prev, chunk["event"] as TraceEvent]);
+    } else if (chunk["type"] === "memory" && typeof chunk["working_memory"] === "string") {
+      setWorkingMemory(chunk["working_memory"] as string);
     } else if (chunk["type"] === "result" && chunk["result"]) {
       const res = chunk["result"] as NexusResult;
       setResult(res);
+      if (res.working_memory) setWorkingMemory(res.working_memory);
       if (Array.isArray(res.trace) && res.trace.length) {
         setTrace((prev) => (prev.length ? prev : res.trace));
       }
     }
   };
+
 
   const run = async () => {
     if (running) return;
