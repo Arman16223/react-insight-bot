@@ -522,21 +522,67 @@ function Nexus() {
 const inputClass =
   "w-full rounded-md border border-input bg-background/60 px-3 py-2.5 font-mono text-sm text-foreground transition-colors placeholder:text-muted-foreground/50 hover:border-border focus:border-primary focus:ring-1 focus:ring-ring focus:outline-none disabled:opacity-60";
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "destructive" | "memory";
+}) {
+  const toneClass =
+    tone === "destructive"
+      ? "border-destructive/50 bg-destructive/10"
+      : tone === "memory"
+        ? "border-[oklch(0.66_0.2_300_/_55%)] bg-[oklch(0.66_0.2_300_/_12%)]"
+        : "border-border bg-secondary/40";
   return (
-    <span className="rounded-sm border border-border bg-secondary/40 px-2 py-1 font-mono text-[0.6rem] tracking-[0.16em] uppercase">
+    <span
+      className={`rounded-sm border px-2 py-1 font-mono text-[0.6rem] tracking-[0.16em] uppercase ${toneClass}`}
+    >
       <span className="text-foreground">{value}</span>{" "}
       <span className="text-muted-foreground">{label}</span>
     </span>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
-      <span className="label-caps mb-2 block">{label}</span>
+      <span className="mb-2 flex items-center justify-between gap-2">
+        <span className="label-caps">{label}</span>
+        {hint && <span className="label-caps opacity-60">{hint}</span>}
+      </span>
       {children}
     </label>
+  );
+}
+
+function MemoryIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <ellipse cx="12" cy="5.5" rx="7" ry="3" />
+      <path d="M5 5.5v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
+      <path d="M5 11.5v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6" />
+    </svg>
   );
 }
 
@@ -544,19 +590,30 @@ function TraceCard({ event }: { event: TraceEvent }) {
   const tone =
     event.type === "error"
       ? "border-destructive/50 text-destructive"
-      : event.type === "decision"
-        ? "border-primary/50 text-primary"
-        : "border-accent/50 text-accent";
+      : event.type === "memory"
+        ? "border-[oklch(0.66_0.2_300_/_55%)] text-[oklch(0.75_0.17_300)]"
+        : event.type === "decision"
+          ? "border-primary/50 text-primary"
+          : "border-accent/50 text-accent";
 
   const dot =
     event.type === "error"
       ? "bg-destructive"
-      : event.type === "decision"
-        ? "bg-primary"
-        : "bg-accent";
+      : event.type === "memory"
+        ? "bg-[oklch(0.7_0.19_300)]"
+        : event.type === "decision"
+          ? "bg-primary"
+          : "bg-accent";
+
+  const cardTone =
+    event.type === "memory"
+      ? "border-[oklch(0.66_0.2_300_/_35%)] bg-[oklch(0.66_0.2_300_/_8%)]"
+      : "border-border bg-card/60";
 
   return (
-    <li className="animate-trace-in relative rounded-md border border-border bg-card/60 p-4 transition-colors hover:border-border/80 hover:bg-card/80">
+    <li
+      className={`animate-trace-in relative rounded-md border p-4 transition-colors hover:border-border/80 hover:bg-card/80 ${cardTone}`}
+    >
       <span
         className={`absolute top-6 -left-[1.55rem] size-2 rounded-full ring-4 ring-[var(--color-surface)] ${dot}`}
         aria-hidden
@@ -564,8 +621,9 @@ function TraceCard({ event }: { event: TraceEvent }) {
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="label-caps">Step {event.step}</span>
         <span
-          className={`rounded-sm border px-2 py-0.5 font-mono text-[0.6rem] tracking-[0.18em] uppercase ${tone}`}
+          className={`flex items-center gap-1.5 rounded-sm border px-2 py-0.5 font-mono text-[0.6rem] tracking-[0.18em] uppercase ${tone}`}
         >
+          {event.type === "memory" && <MemoryIcon className="size-3" />}
           {event.type}
         </span>
         {typeof event.result_count === "number" && (
@@ -586,6 +644,7 @@ function TraceCard({ event }: { event: TraceEvent }) {
     </li>
   );
 }
+
 
 
 /** Returns true when the [DONE] sentinel was seen. */
